@@ -1,0 +1,38 @@
+.validate {
+    position: relative;
+    margin-bottom: -8px;
+}
+   .validate::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: white;
+        opacity: .3;
+        z-index: 1000;
+    }
+
+.btns{
+    margin: 40px 10px 40px;
+}
+.MuiGrid-spacing-xs-3 > .MuiGrid-item{
+    margin:auto;
+}
+
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.MuiSvgIcon-root{
+    color:white;
+}
