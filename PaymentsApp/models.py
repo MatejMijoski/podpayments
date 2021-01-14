@@ -6,6 +6,7 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth.hashers import make_password
 
 # Create your models here.
+import PaymentsApp.services
 from Payments import settings
 
 
@@ -95,6 +96,8 @@ class AvailableAmount(models.Model):
     def save(self, *args, **kwargs):
         self.available_amount = round(self.available_amount, 2)
         super(AvailableAmount, self).save(*args, **kwargs)
+        PaymentsApp.services.process_failed_transactions(self, None)
+
 
     class Meta:
         verbose_name = "Available Amount"
@@ -137,3 +140,4 @@ class FailedTransactions(models.Model):
     class Meta:
         verbose_name = "Failed Transaction"
         verbose_name_plural = "Failed Transactions"
+

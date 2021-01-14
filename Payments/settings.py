@@ -28,7 +28,7 @@ config.read(r'Payments\db.ini')
 try:
     SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
 except KeyError:
-    SECRET_KEY = config.get('main', 'DJANGO_SECRET_KEY')
+    SECRET_KEY = "'" + config.get('main', 'password') + "'"
 
 
 

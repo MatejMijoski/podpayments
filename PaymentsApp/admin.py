@@ -44,14 +44,14 @@ class AccountAdmin(UserAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
     fieldsets = (
-        (None, {'fields': ('email', 'password')}),
+        (None, {'fields': ('email', 'password', 'store_id')}),
         ('Permissions', {'fields': ('is_admin', 'is_active', 'is_staff', 'is_superuser')}),
     )
     add_fieldsets = (
         (None, {'fields':  ('email', 'password', 'store_id', 'is_active', 'is_staff', 'is_superuser')}),
     )
     list_filter = ('email',)
-    list_display = ('email', 'store_id')
+    list_display = ('email', 'store_id', 'store_id')
     ordering = ('email',)
     filter_horizontal = ()
 

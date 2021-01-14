@@ -18,16 +18,11 @@ config.read(r'PODPayment\Payments\db.ini')
 # Make a webhook for orders to domain.com/shipstation/
 # Change email settings
 # OS ENVIRON - EMAIL_PASSWORD | PRODUCTION | CLIENT_ID | CLIENT_SECRET | SHIPSTATION_KEY | DJANGO_SECRET_KEY
-# Remove print statement bellow
 
 # Create your views here.
 class AllTransactions(APIView):
 
     def get(self, request, format=None):
-        try:
-            print(os.environ['PRODUCTION'])
-        except KeyError:
-            pass
         param = self.request.query_params.get('type', None)
         transactions_client = TransactionsClient.objects.filter(user=request.user)
         transactions_company = TransactionsCompany.objects.filter(user=request.user)
@@ -54,7 +49,6 @@ class AllTransactions(APIView):
                                                     context={'request': request}, many=True)
             return Response(all_serializer.data)
 
-
 class AvailableAmount1(APIView):
     def get(self, request, format=None):
         try:
@@ -78,24 +72,10 @@ class AvailableAmount1(APIView):
         # Find the user for the PayPal transaction and update the value in AvailableAmount
         GetOrderAndUpdate().get_order_and_update(request.data.get('orderID', None), request.user)
 
+
+        # Process failed transactions after update in available amount
         try:
-            failed_transactions = FailedTransactions.objects.filter(user=request.user).order_by('transaction_amount')
-
-            if failed_transactions is not None:
-                for i in failed_transactions:
-                    try:
-                        obj = AvailableAmount.objects.get(user=request.user)
-                        return_number = process_orders(getattr(i, 'user'), obj, getattr(i, 'transaction_amount'),
-                                                       getattr(i, 'order_id'), 1)
-
-                        # Delete the failed transaction if it was processed
-                        if return_number == 1:
-                            # hold_or_restore(getattr(i, 'order_id'), False)
-                            delete_obj = FailedTransactions.objects.get(order_id=getattr(i, 'order_id'))
-                            delete_obj.delete()
-                    except AvailableAmount.DoesNotExist:
-                        pass
-
+            process_failed_transactions(None, request.user)
         except FailedTransactions.DoesNotExist:
             pass
 
@@ -127,69 +107,72 @@ class ShipStationTransactions(APIView):
             try:
                 response_json = requests.get(resource_url, headers={
                     "Authorization": "Basic " + os.environ['SHIPSTATION_KEY']}).json()
-            except KeyError:
-                response_json = requests.get(resource_url, headers={
-                    "Authorization": "Basic" + config.get('main', 'SHIPSTATION_KEY')}).json()
 
-            flag = False
+                flag = False
+                # Iterate the orders if there is more than one
+                if next(iter(response_json)) == 'orders':
+                    for i in response_json['orders']:
+                        # Try to find the user with the Store ID and the Available Amount object for that user
+                        # Update the value of the object
+                        try:
+                            user = Account.objects.get(store_id=i['advancedOptions']['storeId'])
+                            obj = AvailableAmount.objects.get(user=user)
 
-            # Iterate the orders if there is more than one
-            if next(iter(request.data)) == 'orders':
-                for i in response_json['orders']:
-                    # Try to find the user with the Store ID and the Available Amount object for that user
-                    # Update the value of the object
+                            # Calculate price for all items in order and send in process_orders to see if there are enough funds
+                            order_total = 0
+                            for item in i['items']:
+                                for key in pricing:
+                                    if key in item['sku']:
+                                        order_total += pricing[key] * item['quantity']
+                            # Process the orders
+                            if order_total != 0:
+                                return_number = process_orders(user, obj, order_total, i['orderId'], 0)
+
+                            # Put the order on hold if there aren't enough funds
+                            # REMOVE COMMENT
+                            # if return_number == 0:
+                            #     hold_or_restore(i['order_id'], True)
+
+                            if float(getattr(obj, 'available_amount')) - float(order_total) < 0:
+                                flag = True
+
+                        except Account.DoesNotExist:
+                            return Response(status=status.HTTP_404_NOT_FOUND)
+                else:
                     try:
-                        user = Account.objects.get(store_id=i['advancedOptions']['storeId'])
+                        user = Account.objects.get(store_id=response_json['advancedOptions']['storeId'])
                         obj = AvailableAmount.objects.get(user=user)
 
-                        # Calculate price for all items in order and send in process_orders to see if there are enough funds
                         order_total = 0
-                        for item in i['items']:
+                        for item in response_json['items']:
                             for key in pricing:
                                 if key in item['sku']:
                                     order_total += pricing[key]
                         # Process the orders
-                        return_number = process_orders(user, obj, order_total, i['orderId'], 0)
+                        return_number = process_orders(user, obj, order_total, response_json['orderId'], 0)
 
                         # Put the order on hold if there aren't enough funds
                         # REMOVE COMMENT
                         # if return_number == 0:
-                        #     hold_or_restore(i['order_id'], True)
+                        #     hold_or_restore(response_json['order_id'], True)
 
                         if float(getattr(obj, 'available_amount')) - float(order_total) < 0:
                             flag = True
 
                     except Account.DoesNotExist:
                         return Response(status=status.HTTP_404_NOT_FOUND)
-            else:
-                try:
-                    user = Account.objects.get(store_id=response_json.data['advancedOptions']['storeId'])
-                    obj = AvailableAmount.objects.get(user=user)
 
-                    order_total = 0
-                    for item in request.data['items']:
-                        for key in pricing:
-                            if key in item['sku']:
-                                order_total += pricing[key]
-                    # Process the orders
-                    return_number = process_orders(user, obj, order_total, response_json['orderId'], 0)
+                if flag:
+                    send_email('Not Enough Funds',
+                               'You don\'t have enough funds on your account. All of the failed order are put on hold and will'
+                               'be processed as soon as you add funds.', getattr(user, 'email'), None)
+            except KeyError:
+                response_json = requests.get(resource_url, headers={
+                    "Authorization": "Basic" + config.get('main', 'SHIPSTATION_KEY')}).json()
 
-                    # Put the order on hold if there were'nt enough funds
-                    # REMOVE COMMENT
-                    # if return_number == 0:
-                    #     hold_or_restore(response_json['order_id'], True)
-
-                    if float(getattr(obj, 'available_amount')) - float(order_total) < 0:
-                        flag = True
-
-                except Account.DoesNotExist:
-                    return Response(status=status.HTTP_404_NOT_FOUND)
-
-            if flag:
-                send_email('Not Enough Funds',
-                           'You don\'t have enough funds on your account. All of the failed order are put on hold and will'
-                           'be processed as soon as you add funds.', getattr(user, 'email'), None)
         except Exception as e:
+            send_email('Something went wrong with the application',
+                       "Error: ".format(e) + " " + response_json , "error@mijoski.com", None)
             return Response(status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_200_OK)
 

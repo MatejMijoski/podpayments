@@ -36,10 +36,21 @@ constructor(props){
             currentTime: "",
         };
 
+        this.setupBeforeUnloadListener = this.setupBeforeUnloadListener.bind(this)
         this.OnClick = this.OnClick.bind(this);
         TokenExpiration(API_URL);
     }
 
+    setupBeforeUnloadListener = () => {
+        window.addEventListener("beforeunload", (ev) => {
+            ev.preventDefault();
+             axios
+            .get(API_URL + 'api/logout/',{
+                headers: {'Authorization': 'Token ' + sessionStorage.getItem('token')}
+            })
+            sessionStorage.clear();
+        });
+    };
 
     componentDidMount(){
         axios.get( API_URL + 'api/',{
@@ -57,6 +68,7 @@ constructor(props){
                         this.setState({ transactions: res.data, loading: false});
                         }, 500)
         })
+
      }
 
     OnClick(event){
