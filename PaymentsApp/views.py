@@ -129,7 +129,7 @@ class ShipStationTransactions(APIView):
                                         order_total += pricing[key] * item['quantity']
                             # Process the orders
                             if order_total != 0:
-                                return_number = process_orders(user, obj, order_total, i['orderId'], 0)
+                                return_number = process_orders(user, obj, order_total, i['orderId'])
 
                             # Put the order on hold if there aren't enough funds
                             # REMOVE COMMENT
