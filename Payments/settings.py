@@ -28,7 +28,7 @@ config.read(r'Payments\db.ini')
 try:
     SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
 except KeyError:
-    SECRET_KEY = "'" + config.get('main', 'password') + "'"
+    SECRET_KEY = ")@w0xpu!0fr(@%-s1y0dd$3+lz9xryzq5cl_ymo#6jwu)o@l%n"
 
 
 
@@ -120,9 +120,9 @@ WSGI_APPLICATION = 'Payments.wsgi.application'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_USE_TLS = True
-EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST = 'smtpout.secureserver.net'
 EMAIL_PORT = 587
-EMAIL_HOST_USER = 'ma.mijoski@gmail.com'
+EMAIL_HOST_USER = 'payments@proprllc.com'
 DEFAULT_FROM_EMAIL = 'default from email'
 
 DATABASES = {

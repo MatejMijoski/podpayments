@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import scriptLoader from "react-async-script-loader";
-import API_URL from "../settings.js";
+import KEYS from "../settings.js";
 
 import {FormControl, InputLabel, OutlinedInput, InputAdornment, Container, Grid, Typography} from '@material-ui/core';
 import axios from 'axios';
@@ -56,7 +56,7 @@ class PaypalButton extends React.Component {
         return actions.order.create({
           purchase_units: [
             {
-              description: "Payment for POD",
+              description: "Payment for Print-on-demand",
               amount: {
                 currency_code: "USD",
                 value: this.refs.paypal.value,
@@ -70,7 +70,10 @@ class PaypalButton extends React.Component {
   onApprove = (data, actions) => {
         const headers = {"Authorization": "Token " + sessionStorage.getItem('token')};
         axios
-         .post( API_URL + 'api/', { orderID: data.orderID }, {headers: headers});
+         .post( KEYS.API_URL + 'api/', { orderID: data.orderID }, {headers: headers})
+         .then(res=>{
+            window.location.reload();
+         })
   };
 
     onChange(event){
@@ -144,4 +147,4 @@ class PaypalButton extends React.Component {
   }
 }
 
-export default scriptLoader("https://www.paypal.com/sdk/js?client-id=AX7mkMXJdVtrtrmhLR75Utm2_7M4HQmlr_sY2gEu5rFyJGkHBZBkmD9cNXElFv4COnre6f1jCIQ1ztY-&disable-funding=credit&currency=USD")(PaypalButton);
+export default scriptLoader("https://www.paypal.com/sdk/js?client-id=" + KEYS.PAYPAL_CLIENT_ID + "&disable-funding=credit&currency=USD")(PaypalButton);

@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -6,7 +6,6 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth.hashers import make_password
 
 # Create your models here.
-import PaymentsApp.services
 from Payments import settings
 
 
@@ -68,7 +67,7 @@ class Account(AbstractBaseUser):
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_auth_token(sender, instance=None, created=False, **kwards):
+def create_auth_token(sender, instance=None, created=False, **kwargs):
     if created:
         Token.objects.create(user=instance)
 
@@ -95,9 +94,30 @@ class AvailableAmount(models.Model):
 
     def save(self, *args, **kwargs):
         self.available_amount = round(self.available_amount, 2)
-        super(AvailableAmount, self).save(*args, **kwargs)
-        PaymentsApp.services.process_failed_transactions(self, None)
+        failed_transactions = FailedTransactions.objects.filter(user=self.user).order_by(
+            'transaction_amount')
 
+        if failed_transactions is not None:
+            for i in failed_transactions:
+                availableAmount = self.available_amount
+                if self.available_amount - float(getattr(i, 'order_id')) >= 0.0:
+                    self.available_amount = round(float(availableAmount) - float(getattr(i, 'transaction_amount')), 2)
+                    print(self.available_amount)
+                    TransactionsCompany.objects.create(
+                            user=self.user,
+                            transaction_amount=float(getattr(i, 'transaction_amount')),
+                            available_amount=float(self.available_amount),
+                            order_id=getattr(i, 'order_id')
+                        )
+                    # hold_or_restore(getattr(i, 'order_id'), False)
+                    delete_obj = FailedTransactions.objects.get(order_id=getattr(i, 'order_id'))
+                    delete_obj.delete()
+                else:
+                    userEmail = self.user
+                    # send_email('Not Enough Funds',
+                    #            'You don\'t have enough funds on your account. All of the failed order are put on hold and will'
+                    #            'be processed as soon as you add funds.', getattr(userEmail, 'email'), None)
+        super(AvailableAmount, self).save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Available Amount"

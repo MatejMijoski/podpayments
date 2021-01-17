@@ -4,7 +4,7 @@ import { Redirect } from "react-router-dom";
 import PayPal from '../components/PayPal';
 import './home.css';
 
-import API_URL from "../settings.js";
+import KEYS from "../settings.js";
 import { Container } from 'reactstrap';
 import DataTable from '@bit/adeoy.utils.data-table';
 import { Grid,
@@ -38,14 +38,14 @@ constructor(props){
 
         this.setupBeforeUnloadListener = this.setupBeforeUnloadListener.bind(this)
         this.OnClick = this.OnClick.bind(this);
-        TokenExpiration(API_URL);
+        TokenExpiration(KEYS.API_URL);
     }
 
     setupBeforeUnloadListener = () => {
         window.addEventListener("beforeunload", (ev) => {
             ev.preventDefault();
              axios
-            .get(API_URL + 'api/logout/',{
+            .get( KEYS.API_URL + 'api/logout/',{
                 headers: {'Authorization': 'Token ' + sessionStorage.getItem('token')}
             })
             sessionStorage.clear();
@@ -53,7 +53,7 @@ constructor(props){
     };
 
     componentDidMount(){
-        axios.get( API_URL + 'api/',{
+        axios.get( KEYS.API_URL + 'api/',{
             headers: {'Authorization': 'Token ' + sessionStorage.getItem('token')}
         }).then(res => {
              setTimeout(() => {
@@ -61,7 +61,7 @@ constructor(props){
                         }, 800)
         })
 
-        axios.get( API_URL + 'api/payments/?type=company',{
+        axios.get( KEYS.API_URL + 'api/payments/?type=company',{
             headers: {'Authorization': 'Token ' + sessionStorage.getItem('token')}
         }).then(res => {
              setTimeout(() => {
@@ -78,7 +78,7 @@ constructor(props){
         }else{
             this.setState({failed:false});
         }
-        axios.get(API_URL + 'api/payments/?type=' + event.target.dataset.type,{
+        axios.get(KEYS.API_URL + 'api/payments/?type=' + event.target.dataset.type,{
             headers: {'Authorization': 'Token ' + sessionStorage.getItem('token')}
         })
           .then(res => {

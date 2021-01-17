@@ -2,7 +2,7 @@ import {React,Component} from 'react';
 import { Redirect } from "react-router-dom";
 import axios from 'axios';
 import Cookies from 'js-cookie';
-import API_URL from "../settings.js";
+import KEYS from "../settings.js";
 
 import Avatar from '@material-ui/core/Avatar';
 import Button from '@material-ui/core/Button';
@@ -46,7 +46,7 @@ class SignIn extends Component{
         var timeCreated = Date.now();
 
         axios
-            .post(API_URL + 'api/login',{username: this.state.email,
+            .post(KEYS.API_URL + 'api/login',{username: this.state.email,
           password: this.state.password}, {headers: headers})
             .then(res => {
                 sessionStorage.setItem('token', res.data.token);

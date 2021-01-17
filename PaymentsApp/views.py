@@ -10,14 +10,17 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 import requests
 import os
 from configparser import ConfigParser
+
 config = ConfigParser()
 config.read(r'PODPayment\Payments\db.ini')
 
+
 # TODO
-# Remove comments from hold_or_restore in both views
+# Remove comments from hold_or_restore in both views and change authorization code with env
 # Make a webhook for orders to domain.com/shipstation/
 # Change email settings
 # OS ENVIRON - EMAIL_PASSWORD | PRODUCTION | CLIENT_ID | CLIENT_SECRET | SHIPSTATION_KEY | DJANGO_SECRET_KEY
+
 
 # Create your views here.
 class AllTransactions(APIView):
@@ -49,6 +52,7 @@ class AllTransactions(APIView):
                                                     context={'request': request}, many=True)
             return Response(all_serializer.data)
 
+
 class AvailableAmount1(APIView):
     def get(self, request, format=None):
         try:
@@ -72,10 +76,9 @@ class AvailableAmount1(APIView):
         # Find the user for the PayPal transaction and update the value in AvailableAmount
         GetOrderAndUpdate().get_order_and_update(request.data.get('orderID', None), request.user)
 
-
         # Process failed transactions after update in available amount
         try:
-            process_failed_transactions(None, request.user)
+            process_failed_transactions(request.user)
         except FailedTransactions.DoesNotExist:
             pass
 
@@ -149,7 +152,7 @@ class ShipStationTransactions(APIView):
                                 if key in item['sku']:
                                     order_total += pricing[key]
                         # Process the orders
-                        return_number = process_orders(user, obj, order_total, response_json['orderId'], 0)
+                        return_number = process_orders(user, obj, order_total, response_json['orderId'])
 
                         # Put the order on hold if there aren't enough funds
                         # REMOVE COMMENT
@@ -164,7 +167,7 @@ class ShipStationTransactions(APIView):
 
                 if flag:
                     send_email('Not Enough Funds',
-                               'You don\'t have enough funds on your account. All of the failed order are put on hold and will'
+                               'You don\'t have enough funds on your account. All of the failed orders are put on hold and will '
                                'be processed as soon as you add funds.', getattr(user, 'email'), None)
             except KeyError:
                 response_json = requests.get(resource_url, headers={
@@ -172,7 +175,7 @@ class ShipStationTransactions(APIView):
 
         except Exception as e:
             send_email('Something went wrong with the application',
-                       "Error: ".format(e) + " " + response_json , "error@mijoski.com", None)
+                       "Error: ".format(e) + " " + response_json, "error@mijoski.com", None)
             return Response(status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_200_OK)
 

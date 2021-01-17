@@ -2,7 +2,7 @@ import {React,Component} from 'react';
 import { Redirect } from "react-router-dom";
 import axios from 'axios';
 import queryString from 'query-string';
-import API_URL from "../settings.js";
+import KEYS from "../settings.js";
 
 
 import Avatar from '@material-ui/core/Avatar';
@@ -71,7 +71,7 @@ class ChangePasswordConfirm extends Component{
             setTimeout(() => {
             if(this.state.errors.length == 0){
                 axios
-                    .put(API_URL + 'api/reset-password-confirm/?token=' + token,{
+                    .put(KEYS.API_URL + 'api/reset-password-confirm/?token=' + token,{
                         new_password: this.state.new_password,
                         new_password_repeat: this.state.new_password_repeat
                     }, {headers: headers})

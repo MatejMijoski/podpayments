@@ -2,15 +2,18 @@ import json
 import uuid
 from itertools import chain
 
+import requests
 from django.core.mail import send_mail
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from paypalcheckoutsdk.core import PayPalHttpClient, SandboxEnvironment, LiveEnvironment
 import sys
 from paypalcheckoutsdk.orders import OrdersGetRequest
-import requests
 # from PaymentsApp.models import AvailableAmount, TransactionsCompany, FailedTransactions
 import os
 from configparser import ConfigParser
+
 config = ConfigParser()
 config.read(r'Payments\db.ini')
 import PaymentsApp.models
@@ -50,9 +53,6 @@ class PayPalClient:
 
         """Set up and return PayPal Python SDK environment with PayPal access credentials.
            This sample uses SandboxEnvironment. In production, use LiveEnvironment."""
-
-
-
 
         """ Returns PayPal HTTP client instance with environment that has access
             credentials context. Use this instance to invoke PayPal APIs, provided the
@@ -96,8 +96,10 @@ class GetOrderAndUpdate(PayPalClient):
         response = self.client.execute(request)
         current_amount = PaymentsApp.models.AvailableAmount.objects.get(user=user)
         PaymentsApp.models.AvailableAmount.objects.filter(user=user).update(available_amount=
-                                                         float(response.result.purchase_units[0].amount.value)
-                                                         + getattr(current_amount, 'available_amount'))
+                                                                            float(response.result.purchase_units[
+                                                                                      0].amount.value)
+                                                                            + getattr(current_amount,
+                                                                                      'available_amount'))
 
     def get_order_price(self, order_id):
         request = OrdersGetRequest(order_id)
@@ -116,7 +118,7 @@ def generate_unique_token(Model, token_field="token", token_function=lambda: uui
 
 
 def send_email(subject, message, emailTo, token):
-    admin_email = "ma.mijoski@gmail.com"
+    admin_email = "payments@proprllc.com"
     if token is None and message is not None:
         send_mail(subject, message, admin_email, [emailTo])
     else:
@@ -127,14 +129,14 @@ def send_email(subject, message, emailTo, token):
 # Process the orders and subtract the order total from the user's available amount
 # User is store, obj is the available amount for that user, order_total is the total price for the order and order_id
 # is the id for the order
-def process_orders(user, obj, order_total, order_id, failed_transaction):
-    if float(getattr(obj, 'available_amount')) - float(order_total) >= 0.0:
-        PaymentsApp.models.AvailableAmount.objects.filter(user=user).update(
-            available_amount=round(float(getattr(obj, 'available_amount')) - float(order_total), 2))
+def process_orders(user, available_amount, order_total, order_id):
+    if getattr(available_amount, 'available_amount') - float(order_total) >= 0.0:
+        available_amount.available_amount=round(float(available_amount.available_amount) - float(order_total), 2)
+        available_amount.save()
         PaymentsApp.models.TransactionsCompany.objects.create(
             user=user,
             transaction_amount=float(order_total),
-            available_amount=float(getattr(PaymentsApp.models.AvailableAmount.objects.get(user=user), 'available_amount')),
+            available_amount=float(available_amount.available_amount),
             order_id=order_id
         )
         return 1
@@ -150,37 +152,33 @@ def process_orders(user, obj, order_total, order_id, failed_transaction):
         return 0
 
 
-# def hold_or_restore(order_id, flag):
-#     if flag:
-#         payload = {"orderId": order_id, "holdUntilDate": "2025-12-01"}
-#         r = requests.post('https://ssapi.shipstation.com/orders/holduntil', data=payload, headers={
-#             "Authorization": "Basic ZGQxNmVlM2E4ZGZjNGI4MjkyZTBkMDhlMjNiZTIxNmE6NDg2MDZjYzQxYzIyNDVlZmFiZTJjNDllNjYwZDVhMGI="})
-#     else:
-#         payload = {"orderId": order_id}
-#         r = requests.post('https://ssapi.shipstation.com/orders/restorefromhold', data=payload, headers={
-#             "Authorization": "Basic ZGQxNmVlM2E4ZGZjNGI4MjkyZTBkMDhlMjNiZTIxNmE6NDg2MDZjYzQxYzIyNDVlZmFiZTJjNDllNjYwZDVhMGI="})
+def hold_or_restore(order_id, flag):
+    if flag:
+        payload = {"orderId": order_id, "holdUntilDate": "2025-12-01"}
+        r = requests.post('https://ssapi.shipstation.com/orders/holduntil', data=payload, headers={
+            "Authorization": "Basic " + os.environ['SHIPSTATION_KEY']})
+    else:
+        payload = {"orderId": order_id}
+        r = requests.post('https://ssapi.shipstation.com/orders/restorefromhold', data=payload, headers={
+            "Authorization": "Basic" + os.environ['SHIPSTATION_KEY']})
 
 
-def process_failed_transactions(self, user):
-        if user is None:
-            failed_transactions = PaymentsApp.models.FailedTransactions.objects.filter(user=self.user).order_by('transaction_amount')
-        else:
-            failed_transactions = PaymentsApp.models.FailedTransactions.objects.filter(user=user).order_by('transaction_amount')
+def process_failed_transactions(user):
+    failed_transactions = PaymentsApp.models.FailedTransactions.objects.filter(user=user).order_by(
+        'transaction_amount')
 
-        if failed_transactions is not None:
-            for i in failed_transactions:
-                try:
-                    if user is None:
-                        return_number = process_orders(getattr(i, 'user'), self, getattr(i, 'transaction_amount'),
-                                                   getattr(i, 'order_id'), 1)
-                    else:
-                        obj = PaymentsApp.models.AvailableAmount.objects.get(user=user)
-                        return_number = process_orders(getattr(i, 'user'), obj, getattr(i, 'transaction_amount'),
-                                                       getattr(i, 'order_id'), 1)
-                    # Delete the failed transaction if it was processed
-                    if return_number == 1:
-                        # hold_or_restore(getattr(i, 'order_id'), False)
-                        delete_obj = PaymentsApp.models.FailedTransactions.objects.get(order_id=getattr(i, 'order_id'))
-                        delete_obj.delete()
-                except PaymentsApp.models.AvailableAmount.DoesNotExist:
-                    pass
+    if failed_transactions is not None:
+        for i in failed_transactions:
+            availableAmount = PaymentsApp.models.AvailableAmount.objects.get(user=user)
+            return_number = process_orders(getattr(i, 'user'), availableAmount, getattr(i, 'transaction_amount'),
+                                           getattr(i, 'order_id'), )
+
+            # Delete the failed transaction if it was processed
+            if return_number == 1:
+                # hold_or_restore(getattr(i, 'order_id'), False)
+                delete_obj = PaymentsApp.models.FailedTransactions.objects.get(order_id=getattr(i, 'order_id'))
+                delete_obj.delete()
+            else:
+                send_email('Not Enough Funds',
+                           'You don\'t have enough funds on your account. All of the failed order are put on hold and will'
+                           'be processed as soon as you add funds.', getattr(user, 'email'), None)

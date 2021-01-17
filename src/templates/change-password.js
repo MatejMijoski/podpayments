@@ -2,7 +2,7 @@ import {React,Component} from 'react';
 import { Redirect } from "react-router-dom";
 import axios from 'axios';
 
-import API_URL from "../settings.js";
+import KEYS from "../settings.js";
 
 import Avatar from '@material-ui/core/Avatar';
 import Button from '@material-ui/core/Button';
@@ -42,7 +42,7 @@ class ChangePassword extends Component{
         const headers = {"X-CSRFTOKEN": Cookies.get('csrftoken')};
 
         axios
-            .post( API_URL + 'api/reset-password/',{email: this.state.email}, {headers: headers})
+            .post( KEYS.API_URL + 'api/reset-password/',{email: this.state.email}, {headers: headers})
             // SHOW A POPUP THAT THE USER SHOULD GO TO HIS EMAIL
             .then(res => {
                 if(res.status == "204"){

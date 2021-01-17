@@ -1,7 +1,7 @@
 import {React,Component} from 'react';
 import axios from 'axios';
 import { Redirect } from "react-router-dom";
-import API_URL from "../settings.js";
+import KEYS from "../settings.js";
 
 class LogOut extends Component{
 constructor(props){
@@ -13,7 +13,7 @@ constructor(props){
     }
     componentDidMount(){
         axios
-            .get(API_URL + 'api/logout/',{
+            .get(KEYS.API_URL + 'api/logout/',{
                 headers: {'Authorization': 'Token ' + sessionStorage.getItem('token')}
             })
             .then(res => {
