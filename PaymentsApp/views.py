@@ -16,15 +16,14 @@ config.read(r'PODPayment\Payments\db.ini')
 
 
 # TODO
-# Remove comments from hold_or_restore in both views and change authorization code with env
-# Make a webhook for orders to domain.com/shipstation/
-# Change email settings
 # OS ENVIRON - EMAIL_PASSWORD | PRODUCTION | CLIENT_ID | CLIENT_SECRET | SHIPSTATION_KEY | DJANGO_SECRET_KEY
 
 
 # Create your views here.
 class AllTransactions(APIView):
-
+    """
+    Get: Get all transactions
+    """
     def get(self, request, format=None):
         param = self.request.query_params.get('type', None)
         transactions_client = TransactionsClient.objects.filter(user=request.user)
@@ -54,6 +53,10 @@ class AllTransactions(APIView):
 
 
 class AvailableAmount1(APIView):
+    """
+    Get: Get available ammount and failed transcactions amount
+    Post: Get PayPal order and update values
+    """
     def get(self, request, format=None):
         try:
             available_amount = AvailableAmount.objects.get(user=request.user)
@@ -128,13 +131,17 @@ class ShipStationTransactions(APIView):
                                     if key in item['sku']:
                                         order_total += pricing[key] * item['quantity']
                             # Process the orders
+                            return_number = 1
                             if order_total != 0:
                                 return_number = process_orders(user, obj, order_total, i['orderId'])
 
                             # Put the order on hold if there aren't enough funds
-                            # REMOVE COMMENT
-                            # if return_number == 0:
-                            #     hold_or_restore(i['order_id'], True)
+                            try:
+                                value = os.environ['PRODUCTION']
+                                if return_number == 0:
+                                    hold_or_restore(response_json['order_id'], True)
+                            except KeyError:
+                                pass
 
                             if float(getattr(obj, 'available_amount')) - float(order_total) < 0:
                                 flag = True
@@ -155,10 +162,12 @@ class ShipStationTransactions(APIView):
                         return_number = process_orders(user, obj, order_total, response_json['orderId'])
 
                         # Put the order on hold if there aren't enough funds
-                        # REMOVE COMMENT
-                        # if return_number == 0:
-                        #     hold_or_restore(response_json['order_id'], True)
-
+                        try:
+                            value = os.environ['PRODUCTION']
+                            if return_number == 0:
+                                hold_or_restore(response_json['order_id'], True)
+                        except KeyError:
+                            pass
                         if float(getattr(obj, 'available_amount')) - float(order_total) < 0:
                             flag = True
 

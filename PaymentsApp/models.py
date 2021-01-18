@@ -1,3 +1,6 @@
+import os
+
+import requests
 from django.db import models, transaction
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db.models.signals import post_save
@@ -7,6 +10,7 @@ from django.contrib.auth.hashers import make_password
 
 # Create your models here.
 from Payments import settings
+from PaymentsApp.services import send_email
 
 
 class MyAccountManager(BaseUserManager):
@@ -102,21 +106,26 @@ class AvailableAmount(models.Model):
                 availableAmount = self.available_amount
                 if self.available_amount - float(getattr(i, 'order_id')) >= 0.0:
                     self.available_amount = round(float(availableAmount) - float(getattr(i, 'transaction_amount')), 2)
-                    print(self.available_amount)
                     TransactionsCompany.objects.create(
                             user=self.user,
                             transaction_amount=float(getattr(i, 'transaction_amount')),
                             available_amount=float(self.available_amount),
                             order_id=getattr(i, 'order_id')
                         )
-                    # hold_or_restore(getattr(i, 'order_id'), False)
+                    payload = {"orderId": getattr(i, 'order_id'), "holdUntilDate": "2025-12-01"}
+                    try:
+                        value = os.environ['PRODUCTION']
+                        r = requests.post('https://ssapi.shipstation.com/orders/', data=payload, headers={
+                        "Authorization": "Basic " + os.environ['SHIPSTATION_KEY']})
+                    except KeyError:
+                        pass
                     delete_obj = FailedTransactions.objects.get(order_id=getattr(i, 'order_id'))
                     delete_obj.delete()
                 else:
                     userEmail = self.user
-                    # send_email('Not Enough Funds',
-                    #            'You don\'t have enough funds on your account. All of the failed order are put on hold and will'
-                    #            'be processed as soon as you add funds.', getattr(userEmail, 'email'), None)
+                    send_email('Not Enough Funds',
+                               'You don\'t have enough funds on your account. All of the failed order are put on hold and will'
+                               'be processed as soon as you add funds.', getattr(userEmail, 'email'), None)
         super(AvailableAmount, self).save(*args, **kwargs)
 
     class Meta:

@@ -131,7 +131,6 @@ DATABASES = {
 }
 
 try:
-    value = os.environ['PRODUCTION']
     EMAIL_HOST_PASSWORD = os.environ['EMAIL_PASSWORD']
     db_from_env = dj_database_url.config(conn_max_age=500, ssl_require=True)
     DATABASES['default'].update(db_from_env)

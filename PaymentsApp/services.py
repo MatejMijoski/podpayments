@@ -111,7 +111,6 @@ def generate_unique_token(Model, token_field="token", token_function=lambda: uui
     unique_token_found = False
     while not unique_token_found:
         token = token_function()
-        # This weird looking construction is a way to pass a value to a field with a dynamic name
         if Model.objects.filter(**{token_field: token}).count() is 0:
             unique_token_found = True
     return token
@@ -175,7 +174,7 @@ def process_failed_transactions(user):
 
             # Delete the failed transaction if it was processed
             if return_number == 1:
-                # hold_or_restore(getattr(i, 'order_id'), False)
+                hold_or_restore(getattr(i, 'order_id'), False)
                 delete_obj = PaymentsApp.models.FailedTransactions.objects.get(order_id=getattr(i, 'order_id'))
                 delete_obj.delete()
             else:
