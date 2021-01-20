@@ -123,7 +123,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST = 'smtpout.secureserver.net'
 EMAIL_PORT = 587
 EMAIL_HOST_USER = 'payments@proprllc.com'
-DEFAULT_FROM_EMAIL = 'default from email'
+EMAIL_USE_SSL = True
 
 DATABASES = {
     'default': {
