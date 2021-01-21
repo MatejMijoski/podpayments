@@ -100,32 +100,35 @@ class AvailableAmount(models.Model):
         self.available_amount = round(self.available_amount, 2)
         failed_transactions = FailedTransactions.objects.filter(user=self.user).order_by(
             'transaction_amount')
-
+        flag = False
         if failed_transactions is not None:
             for i in failed_transactions:
                 availableAmount = self.available_amount
-                if self.available_amount - float(getattr(i, 'order_id')) >= 0.0:
+                if self.available_amount - float(getattr(i, 'transaction_amount')) >= 0.0:
                     self.available_amount = round(float(availableAmount) - float(getattr(i, 'transaction_amount')), 2)
                     TransactionsCompany.objects.create(
-                            user=self.user,
-                            transaction_amount=float(getattr(i, 'transaction_amount')),
-                            available_amount=float(self.available_amount),
-                            order_id=getattr(i, 'order_id')
-                        )
+                        user=self.user,
+                        transaction_amount=float(getattr(i, 'transaction_amount')),
+                        available_amount=float(self.available_amount),
+                        order_id=getattr(i, 'order_id')
+                    )
                     payload = {"orderId": getattr(i, 'order_id'), "holdUntilDate": "2025-12-01"}
                     try:
                         value = os.environ['PRODUCTION']
                         r = requests.post('https://ssapi.shipstation.com/orders/', data=payload, headers={
-                        "Authorization": "Basic " + os.environ['SHIPSTATION_KEY']})
+                            "Authorization": "Basic " + os.environ['SHIPSTATION_KEY']})
                     except KeyError:
                         pass
                     delete_obj = FailedTransactions.objects.get(order_id=getattr(i, 'order_id'))
                     delete_obj.delete()
                 else:
-                    userEmail = self.user
-                    send_email('Not Enough Funds',
-                               'You don\'t have enough funds on your account. All of the failed order are put on hold and will'
-                               'be processed as soon as you add funds.', getattr(userEmail, 'email'), None)
+                    flag = True
+
+            if flag:
+                userEmail = self.user
+                send_email('Not Enough Funds',
+                           'You don\'t have enough funds on your account. All of the failed order are put on hold and will'
+                           'be processed as soon as you add funds.', getattr(userEmail, 'email'), None)
         super(AvailableAmount, self).save(*args, **kwargs)
 
     class Meta:
@@ -169,4 +172,3 @@ class FailedTransactions(models.Model):
     class Meta:
         verbose_name = "Failed Transaction"
         verbose_name_plural = "Failed Transactions"
-
