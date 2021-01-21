@@ -139,7 +139,7 @@ class ShipStationTransactions(APIView):
                             try:
                                 value = os.environ['PRODUCTION']
                                 if return_number == 0:
-                                    hold_or_restore(response_json['order_id'], True)
+                                    hold_or_restore(i['orderId'], True)
                             except KeyError:
                                 pass
 
@@ -165,7 +165,7 @@ class ShipStationTransactions(APIView):
                         try:
                             value = os.environ['PRODUCTION']
                             if return_number == 0:
-                                hold_or_restore(response_json['order_id'], True)
+                                hold_or_restore(response_json['orderId'], True)
                         except KeyError:
                             pass
                         if float(getattr(obj, 'available_amount')) - float(order_total) < 0:
