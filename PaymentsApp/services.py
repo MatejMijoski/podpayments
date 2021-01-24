@@ -121,7 +121,7 @@ def send_email(subject, message, emailTo, token):
     if token is None and message is not None:
         send_mail(subject, message, admin_email, [emailTo])
     else:
-        message = 'Please visit this link to reset your password http://podpayments.webcodefy.com/change-password-confirm?token=' + token
+        message = 'Please visit this link to reset your password https://podpayments.herokuapp.com/change-password-confirm?token=' + token
         send_mail(subject, message, admin_email, [emailTo])
 
 

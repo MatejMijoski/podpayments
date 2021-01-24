@@ -112,10 +112,10 @@ class AvailableAmount(models.Model):
                         available_amount=float(self.available_amount),
                         order_id=getattr(i, 'order_id')
                     )
-                    payload = {"orderId": getattr(i, 'order_id'), "holdUntilDate": "2025-12-01"}
+                    payload = {"orderId": getattr(i, 'order_id')}
                     try:
                         value = os.environ['PRODUCTION']
-                        r = requests.post('https://ssapi.shipstation.com/orders/', data=payload, headers={
+                        r = requests.post('https://ssapi.shipstation.com/orders/restorefromhold/', data=payload, headers={
                             "Authorization": "Basic " + os.environ['SHIPSTATION_KEY']})
                     except KeyError:
                         pass
